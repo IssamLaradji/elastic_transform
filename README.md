@@ -1,3 +1,3 @@
 # elastic_transform
 
-Implements the elastic transform class using Kornia.
+Implements a differentiable elastic transform class using Kornia.
