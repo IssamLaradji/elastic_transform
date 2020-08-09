@@ -11,17 +11,19 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import kornia
+import math
+import numpy as np
 from torch.distributions import Uniform
-
+from scipy.ndimage.interpolation import map_coordinates
+from scipy.ndimage.filters import gaussian_filter
 
 class ElasticTransform(nn.Module):
-    def __init__(self, nz, transformation, datasetmean, datasetstd, neurons=6):
+    def __init__(self, alpha=100, sigma=5, random_seed=42):
         super().__init__()
-        self.log_sigma = nn.Parameter(torch.zeros(2), requires_grad=True)
-        self.log_alpha = nn.Parameter(torch.zeros(2), requires_grad=True)
+        self.log_sigma = nn.Parameter(torch.ones(2), requires_grad=True) * math.log(alpha)
+        self.log_alpha = nn.Parameter(torch.ones(2), requires_grad=True) * math.log(sigma)
         self.log_disp = nn.Parameter(torch.zeros(2), requires_grad=True)
-        self.disp_scale = 0.1
-        self.random_seed = 42
+        self.random_seed = random_seed
         
     def forward(self, x):
         sigma = torch.exp(self.log_sigma)
@@ -33,7 +35,7 @@ class ElasticTransform(nn.Module):
                                                 alpha=alpha, 
                                                 disp_scale=disp,
                                                 random_seed=self.random_seed)
-        return img_transformed, None
+        return img_transformed
 
 
 def elastic_transform_2d(tensor: torch.Tensor, 
@@ -73,28 +75,39 @@ def elastic_transform_2d(tensor: torch.Tensor,
     kernel_x = get_gaussian_kernel2d(kernel_size, (sigma[1], sigma[1]))[None]
 
     # Convolve over a random displacement matrix and scale them with 'alpha'
-    disp = torch.rand(n, 2, h, w, generator=generator).to(device=tensor.device)
-    disp[:,0] *= disp_scale[0]
-    disp[:,1] *= disp_scale[1]
+    d_rand = torch.rand(n, 2, h, w, generator=generator).to(device=tensor.device)* 2 - 1
 
-    disp_y = kornia.filters.filter2D(disp[:,[0]], kernel=kernel_y, border_type='reflect') * alpha[0]
-    disp_x = kornia.filters.filter2D(disp[:,[1]], kernel=kernel_x, border_type='reflect') * alpha[1]
+    ### numpy
+    if random_seed is None:
+        random_state = np.random.RandomState(None)
+    else:
+        random_state = np.random.RandomState(random_seed)
+    shape = (h, w)
+    dx_numpy = gaussian_filter((random_state.rand(*shape) * 2 - 1), float(sigma[0]), mode="constant", cval=0) * float(alpha[0])
+    dy_numpy = gaussian_filter((random_state.rand(*shape) * 2 - 1), float(sigma[1]), mode="constant", cval=0) * float(alpha[1])
 
-    # scale displacements
-    disp_y *= alpha[0]
-    disp_x *= alpha[1]
+    ###
+    dy = torch.as_tensor(dy_numpy).float()[None, None]
+    dx = torch.as_tensor(dx_numpy).float()[None, None]
+    # dy = kornia.filters.filter2D(d_rand[:,[0]], kernel=kernel_y, border_type='constant') * alpha[0]
+    # dx = kornia.filters.filter2D(d_rand[:,[1]], kernel=kernel_x, border_type='constant') * alpha[1]
 
     # stack and normalize displacement
-    disp = torch.cat([disp_y, disp_x], dim=1).squeeze(0).permute(0,2,3,1)
+    d_yx = torch.cat([dy, dx], dim=1).permute(0,2,3,1)
     
     # Warp image based on displacement matrix
     grid = kornia.utils.create_meshgrid(h, w).to(device=tensor.device)
-    warped =  F.grid_sample(tensor, (grid + disp).clamp(-1,1), align_corners=True)
+    warped =  F.grid_sample(tensor, (grid + d_yx).clamp(-1,1), align_corners=True)
     
+    from scipy.ndimage.interpolation import map_coordinates
+    map_coordinates(tensor.numpy(), (grid + d_yx).clamp(-1,1), order=1).reshape(shape)
     return warped
 
 
 def gaussian(window_size, sigma):
+    r"""
+    Modified from Kornia to allow gradients to flow
+    """
     x = torch.arange(window_size).float().to(device=sigma.device) - window_size // 2
     if window_size % 2 == 0:
         x = x + 0.5
@@ -106,26 +119,8 @@ def get_gaussian_kernel2d(
         kernel_size: Tuple[int, int],
         sigma: Tuple[float, float],
         force_even: bool = False) -> torch.Tensor:
-    r"""Function that returns Gaussian filter matrix coefficients.
-    Args:
-        kernel_size (Tuple[int, int]): filter sizes in the x and y direction.
-         Sizes should be odd and positive.
-        sigma (Tuple[int, int]): gaussian standard deviation in the x and y
-         direction.
-        force_even (bool): overrides requirement for odd kernel size.
-    Returns:
-        Tensor: 2D tensor with gaussian filter matrix coefficients.
-    Shape:
-        - Output: :math:`(\text{kernel_size}_x, \text{kernel_size}_y)`
-    Examples::
-        >>> kornia.image.get_gaussian_kernel2d((3, 3), (1.5, 1.5))
-        tensor([[0.0947, 0.1183, 0.0947],
-                [0.1183, 0.1478, 0.1183],
-                [0.0947, 0.1183, 0.0947]])
-        >>> kornia.image.get_gaussian_kernel2d((3, 5), (1.5, 1.5))
-        tensor([[0.0370, 0.0720, 0.0899, 0.0720, 0.0370],
-                [0.0462, 0.0899, 0.1123, 0.0899, 0.0462],
-                [0.0370, 0.0720, 0.0899, 0.0720, 0.0370]])
+    r"""
+    See Kornia for Description
     """
     if not isinstance(kernel_size, tuple) or len(kernel_size) != 2:
         raise TypeError(
@@ -149,20 +144,8 @@ def get_gaussian_kernel2d(
 def get_gaussian_kernel1d(kernel_size: int,
                           sigma: float,
                           force_even: bool = False) -> torch.Tensor:
-    r"""Function that returns Gaussian filter coefficients.
-    Args:
-        kernel_size (int): filter size. It should be odd and positive.
-        sigma (float): gaussian standard deviation.
-        force_even (bool): overrides requirement for odd kernel size.
-    Returns:
-        Tensor: 1D tensor with gaussian filter coefficients.
-    Shape:
-        - Output: :math:`(\text{kernel_size})`
-    Examples::
-        >>> kornia.image.get_gaussian_kernel(3, 2.5)
-        tensor([0.3243, 0.3513, 0.3243])
-        >>> kornia.image.get_gaussian_kernel(5, 1.5)
-        tensor([0.1201, 0.2339, 0.2921, 0.2339, 0.1201])
+    r"""
+    See Kornia for Description
     """
     if (not isinstance(kernel_size, int) or (
             (kernel_size % 2 == 0) and not force_even) or (
