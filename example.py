@@ -24,5 +24,5 @@ org = (image.numpy().squeeze()*255).astype('uint8')
 out = (image_transformed.detach().numpy().squeeze()*255).astype('uint8')
 out_numpy = (image_transformed_numpy*255).astype('uint8')
 
-output = np.concatenate([org, out_numpy, out, ],axis=1)
+output = np.concatenate([org, out, ],axis=1)
 Image.fromarray(output).save('lungs_transformed.jpg')

@@ -13,3 +13,5 @@ image_transformed = et.forward(image)
 ## Example
 Run `python example.py`, it will give the following output.
 
+![](lungs_transformed.jpg)
+
