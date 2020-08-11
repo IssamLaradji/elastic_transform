@@ -18,7 +18,7 @@ image_pil = torchvision.transforms.ToPILImage()(image_transformed.squeeze())
 image_pil.save('lungs_transformed.jpg')
 
 image_transformed_numpy = elastic_transform_numpy.elastic_transform_numpy(image.numpy().squeeze(), 
-                                alpha=500, sigma=2, random_state=42)
+                                alpha=1, sigma=12, random_state=42)
 
 org = (image.numpy().squeeze()*255).astype('uint8')
 out = (image_transformed.detach().numpy().squeeze()*255).astype('uint8')

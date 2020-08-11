@@ -25,9 +25,3 @@ def elastic_transform_numpy(image, alpha, sigma, random_state=None):
     indices = np.reshape(x+dx, (-1, 1)), np.reshape(y+dy, (-1, 1))
     
     return map_coordinates(image, indices, order=1).reshape(shape)
-
-class TestElasticTransform:
-    def test_equivalence(self):
-        image = np.random.rand(100,100,3)
-        print(elastic_transform_numpy(image, alpha=30, sigma=10, random_state=42))
-        assert(3==3)
