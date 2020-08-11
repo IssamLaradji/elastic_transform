@@ -6,7 +6,10 @@ Transform input image as follows.
 ```
 import elastic_transform
 
-et = elastic_transform.ElasticTransform(disp_scale=0.1, random_seed=42)
+from PIL import Image
+
+image = torchvision.transforms.ToTensor()(Image.open('lungs.jpg))[None][:,[0]]
+et = elastic_transform.ElasticTransform(alpha=1,  sigma=12, random_seed=42)
 image_transformed = et.forward(image)
 ```
 
