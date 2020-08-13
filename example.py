@@ -28,5 +28,5 @@ if __name__ == "__main__":
     output = np.concatenate([org, out, ],axis=1)
     Image.fromarray(output).save(fname_out)
 
-    print('%.3f seconds to process image "%s", '  
-          'saved as "%s"' % ( e_time, fname, fname_out))
+    print('%.3f seconds with %s to process image "%s", '  
+          'saved as "%s"' % ( e_time, device, fname, fname_out))
