@@ -8,7 +8,7 @@ import elastic_transform
 
 from PIL import Image
 
-image = torchvision.transforms.ToTensor()(Image.open('lungs.jpg))[None][:,[0]]
+image = torchvision.transforms.ToTensor()(Image.open('base/lungs.jpg))[None][:,[0]]
 et = elastic_transform.ElasticTransform(alpha=1,  sigma=12, random_seed=42)
 image_transformed = et.forward(image)
 ```
