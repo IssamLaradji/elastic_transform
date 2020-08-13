@@ -1,5 +1,7 @@
 # Differentiable Elastic Transform based on Kornia
 
+![](transformed.jpg)
+
 ## Usage
 
 Transform input image as follows.
@@ -14,7 +16,7 @@ image_transformed = et.forward(image)
 ```
 
 ## Example
-Run `python example.py`, it will give the following output.
+Run `python example.py`, it will give the output as the image above.
 
-![](lungs_transformed.jpg)
+
 
