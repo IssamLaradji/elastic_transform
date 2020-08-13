@@ -2,6 +2,8 @@
 
 ![](transformed.jpg)
 
+Take advantage of a GPU-based, batch-based, learnable elastic transform module.
+
 ## Usage
 
 Transform input image as follows.
