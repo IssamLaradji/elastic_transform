@@ -26,18 +26,15 @@ class ElasticTransform(nn.Module):
             2), requires_grad=True) * math.log(sigma)
         self.log_alpha = nn.Parameter(torch.ones(
             2), requires_grad=True) * math.log(alpha)
-        self.log_disp = nn.Parameter(torch.zeros(2), requires_grad=True)
         self.random_seed = random_seed
 
     def forward(self, x):
         sigma = torch.exp(self.log_sigma)
         alpha = torch.exp(self.log_alpha)
-        disp = torch.exp(self.log_disp).clamp(0, 1)
         img_transformed = elastic_transform_2d(x,
                                                kernel_size=(3, 3),
                                                sigma=sigma,
                                                alpha=alpha,
-                                               disp_scale=disp,
                                                random_seed=self.random_seed)
         return img_transformed
 
@@ -46,7 +43,6 @@ def elastic_transform_2d(tensor: torch.Tensor,
                          kernel_size: Tuple[int, int] = (3, 3),
                          sigma: Tuple[float, float] = (4., 4.),
                          alpha: Tuple[float, float] = (32., 32.),
-                         disp_scale: Tuple[float, float] = (0.1, 0.1),
                          random_seed: Optional = None) -> torch.Tensor:
     r"""Applies elastic transform of images as described in [Simard2003]_.
     Args:
@@ -56,8 +52,6 @@ def elastic_transform_2d(tensor: torch.Tensor,
                                      Larger sigma results in smaller pixel displacements. Default:(4,4).
         alpha (Tuple[float, float]):  the scaling factor that controls the intensity of the deformation
                                   in the y and x directions, respectively. Default:(32,32).
-        disp_scale (Tuple[float, float]):  the scaling factor that controls the intensity of the displacement
-                                  in the y and x directions, respectively. Default:(0.1, 0.1).
         random_seed (Optional): random seed for generating the displacement vector. Default:None.
 
     Returns:
