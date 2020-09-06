@@ -72,8 +72,8 @@ def elastic_transform_2d(tensor: torch.Tensor,
     d_rand = torch.rand(n, 2, h, w, generator=generator).to(
         device=tensor.device) * 2 - 1
 
-    tensor_y = d_rand[:, 0].squeeze()
-    tensor_x = d_rand[:, 1].squeeze()
+    tensor_y = d_rand[:, 0]
+    tensor_x = d_rand[:, 1]
 
     dy = apply_gaussian(tensor_y, sigma[0]) * alpha[0]
     dx = apply_gaussian(tensor_x, sigma[1]) * alpha[1]
@@ -103,7 +103,7 @@ def apply_gaussian(tensor, sigma):
     kernel_size = int(2*(4.0*sigma+0.5))
     k = get_gaussian_kernel2d((kernel_size, kernel_size), (sigma, sigma))
     t2 = kornia.filters.filter2D(
-        tensor[None, None], kernel=k[None], border_type='constant')
+        tensor[:, None], kernel=k[None], border_type='constant')
 
     return t2
 
